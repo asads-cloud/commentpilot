@@ -1,0 +1,11 @@
+{
+  "name": "commentpilot-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "echo \"TODO: init Next.js (Phase 1)\"",
+    "build": "echo \"TODO\"",
+    "start": "echo \"TODO\""
+  },
+  "engines": { "node": ">=20" }
+}
