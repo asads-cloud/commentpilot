@@ -82,3 +82,7 @@ S3 bucket: commentpilot-tfstate (versioned, SSE, public access blocked)
 DynamoDB table: commentpilot-tflock (key: LockID)
 
 State key: envs/dev/terraform.tfstate
+
+- Mermaid source: `docs/diagrams/architecture.mmd`
+- PNG: `docs/diagrams/architecture.png`
+- SVG: `docs/diagrams/architecture.svg`
