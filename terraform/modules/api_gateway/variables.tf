@@ -13,3 +13,10 @@ variable "cloudwatch_role_arn"   { type = string } # Role for APIGW to write log
 
 variable "tags"                  { type = map(string) }
 
+#----test
+
+variable "lambda_arn_get_messages" { type = string }
+
+variable "lambda_arn_post_reply"   { type = string }
+
+variable "cognito_user_pool_arn"   { type = string }

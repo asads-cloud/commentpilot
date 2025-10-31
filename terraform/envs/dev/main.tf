@@ -82,7 +82,13 @@ module "apigw" {
   api_name            = local.api_name
   stage_name          = local.stage_name
   region              = var.region
-  lambda_arn_health   = module.lambda_health.function_arn
+
+  lambda_arn_health       = module.lambda_health.function_arn
+  lambda_arn_get_messages = module.lambda_get_messages.lambda_arn
+  lambda_arn_post_reply   = module.lambda_post_reply.lambda_arn
+
+  cognito_user_pool_arn   = module.cognito.user_pool_arn
+
   cloudwatch_role_arn = module.iam_apigw_logs.role_arn
   tags                = merge(local.tags, { Name = local.api_name, Purpose = "public-api" })
 }
@@ -116,6 +122,33 @@ module "cognito" {
   allowed_oauth_scopes = ["openid", "email", "profile"]
   tags                 = merge(local.tags, { Name = local.cognito_pool_name, Purpose = "auth" })
   env                  = local.env
+}
+
+#---------------- LAMBDA API ----------------#
+
+locals {
+  api_env = {
+    COGNITO_ISSUER        = "https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_cnU947fEq"
+    COGNITO_APP_CLIENT_ID = "3rjegck7s8kmirac79hajqg99d"
+    DDB_TABLE             = "commentpilot_messages_dev"
+  }
+}
+
+# --- Lambdas (built via esbuild by the module) ---
+module "lambda_get_messages" {
+  source   = "../../modules/lambda_api"
+  name     = "cp_api_get_messages_dev"
+  entry    = "getMessages"
+  role_arn = module.iam_lambda_exec.role_arn
+  env      = local.api_env
+}
+
+module "lambda_post_reply" {
+  source   = "../../modules/lambda_api"
+  name     = "cp_api_post_reply_dev"
+  entry    = "postReply"
+  role_arn = module.iam_lambda_exec.role_arn
+  env      = local.api_env
 }
 
 #---------------- IAM ----------------#

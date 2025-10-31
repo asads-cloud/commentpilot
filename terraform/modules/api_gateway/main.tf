@@ -33,14 +33,17 @@ resource "aws_api_gateway_integration" "health_integration" {
   uri                     = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${var.lambda_arn_health}/invocations"
 }
 
-# Deployment + stage
 resource "aws_api_gateway_deployment" "deploy" {
   rest_api_id = aws_api_gateway_rest_api.api.id
-  # Force redeploy when integration/method changes
   triggers = {
     redeploy_hash = sha1(join(",", [
       aws_api_gateway_integration.health_integration.id,
-      aws_api_gateway_method.health_get.id
+      aws_api_gateway_method.health_get.id,
+      aws_api_gateway_authorizer.cognito_userpools.id,
+      aws_api_gateway_integration.get_messages.id,
+      aws_api_gateway_method.get_messages.id,
+      aws_api_gateway_integration.post_reply.id,
+      aws_api_gateway_method.post_reply.id
     ]))
   }
   lifecycle { create_before_destroy = true }
@@ -89,3 +92,77 @@ resource "aws_lambda_permission" "allow_apigw_invoke" {
 }
 
 
+#----test
+
+# --- Cognito authorizer for REST API ---
+resource "aws_api_gateway_authorizer" "cognito_userpools" {
+  name            = "cognito_userpools"
+  rest_api_id     = aws_api_gateway_rest_api.api.id
+  type            = "COGNITO_USER_POOLS"
+  provider_arns   = [var.cognito_user_pool_arn]
+  identity_source = "method.request.header.Authorization"
+}
+
+# --- /messages (GET) ---
+resource "aws_api_gateway_resource" "messages" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_rest_api.api.root_resource_id
+  path_part   = "messages"
+}
+
+resource "aws_api_gateway_method" "get_messages" {
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  resource_id   = aws_api_gateway_resource.messages.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_userpools.id
+}
+
+resource "aws_api_gateway_integration" "get_messages" {
+  rest_api_id             = aws_api_gateway_rest_api.api.id
+  resource_id             = aws_api_gateway_resource.messages.id
+  http_method             = aws_api_gateway_method.get_messages.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${var.lambda_arn_get_messages}/invocations"
+}
+
+resource "aws_lambda_permission" "allow_apigw_get_messages" {
+  statement_id  = "AllowAPIGInvokeGetMessages"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_arn_get_messages
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/GET/messages"
+}
+
+# --- /reply (POST) ---
+resource "aws_api_gateway_resource" "reply" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_rest_api.api.root_resource_id
+  path_part   = "reply"
+}
+
+resource "aws_api_gateway_method" "post_reply" {
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  resource_id   = aws_api_gateway_resource.reply.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_userpools.id
+}
+
+resource "aws_api_gateway_integration" "post_reply" {
+  rest_api_id             = aws_api_gateway_rest_api.api.id
+  resource_id             = aws_api_gateway_resource.reply.id
+  http_method             = aws_api_gateway_method.post_reply.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.region}:lambda:path/2015-03-31/functions/${var.lambda_arn_post_reply}/invocations"
+}
+
+resource "aws_lambda_permission" "allow_apigw_post_reply" {
+  statement_id  = "AllowAPIGInvokePostReply"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_arn_post_reply
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/POST/reply"
+}
