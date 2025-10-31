@@ -1,0 +1,8 @@
+{
+  "name": "commentpilot-api",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "jose": "^5.10.0"
+  }
+}
