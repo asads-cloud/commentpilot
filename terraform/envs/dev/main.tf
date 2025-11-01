@@ -151,6 +151,83 @@ module "lambda_post_reply" {
   env      = local.api_env
 }
 
+#---------------- LAMBDA ETL ----------------#
+
+# Reuse the lambda exec role cleanly
+data "aws_iam_role" "cp_lambda_exec_dev" {
+  name = "cp_lambda_exec_dev"
+}
+
+# S3 write permissions for RAW bucket
+data "aws_iam_policy_document" "s3_put_raw" {
+  statement {
+    actions   = ["s3:PutObject","s3:AbortMultipartUpload","s3:PutObjectAcl"]
+    resources = ["arn:aws:s3:::${local.raw_bucket_name}/*"]
+  }
+}
+resource "aws_iam_policy" "s3_put_raw" {
+  name   = "cp_lambda_raw_write_dev"
+  policy = data.aws_iam_policy_document.s3_put_raw.json
+}
+resource "aws_iam_role_policy_attachment" "attach_s3_put_raw" {
+  role       = data.aws_iam_role.cp_lambda_exec_dev.name
+  policy_arn = aws_iam_policy.s3_put_raw.arn
+}
+
+# Instagram ETL
+module "lambda_fetch_instagram_dm" {
+  source    = "../../modules/lambda_basic"
+  name      = "cp_fetch_instagram_dm_dev"
+  entry_dir = "etl/fetch_instagram_dm"
+  role_arn  = data.aws_iam_role.cp_lambda_exec_dev.arn
+  env       = { RAW_BUCKET = local.raw_bucket_name }
+  depends_on = [aws_iam_role_policy_attachment.attach_s3_put_raw]
+}
+
+# TikTok ETL
+module "lambda_fetch_tiktok_dm" {
+  source    = "../../modules/lambda_basic"
+  name      = "cp_fetch_tiktok_dm_dev"
+  entry_dir = "etl/fetch_tiktok_dm"
+  role_arn  = data.aws_iam_role.cp_lambda_exec_dev.arn
+  env       = { RAW_BUCKET = local.raw_bucket_name }
+  depends_on = [aws_iam_role_policy_attachment.attach_s3_put_raw]
+}
+
+# EventBridge schedules (cron or rate both fine)
+resource "aws_cloudwatch_event_rule" "ig_schedule" {
+  name                = "cp_fetch_schedule_instagram_dev"
+  schedule_expression = "rate(5 minutes)"
+}
+resource "aws_cloudwatch_event_rule" "tt_schedule" {
+  name                = "cp_fetch_schedule_tiktok_dev"
+  schedule_expression = "rate(5 minutes)"
+}
+resource "aws_cloudwatch_event_target" "ig_target" {
+  rule      = aws_cloudwatch_event_rule.ig_schedule.name
+  target_id = "ig"
+  arn       = module.lambda_fetch_instagram_dm.lambda_arn
+}
+resource "aws_cloudwatch_event_target" "tt_target" {
+  rule      = aws_cloudwatch_event_rule.tt_schedule.name
+  target_id = "tt"
+  arn       = module.lambda_fetch_tiktok_dm.lambda_arn
+}
+resource "aws_lambda_permission" "allow_events_ig" {
+  statement_id  = "AllowEventsInvokeIG"
+  action        = "lambda:InvokeFunction"
+  function_name = module.lambda_fetch_instagram_dm.lambda_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.ig_schedule.arn
+}
+resource "aws_lambda_permission" "allow_events_tt" {
+  statement_id  = "AllowEventsInvokeTT"
+  action        = "lambda:InvokeFunction"
+  function_name = module.lambda_fetch_tiktok_dm.lambda_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.tt_schedule.arn
+}
+
 #---------------- IAM ----------------#
 
 # Convenience locals
