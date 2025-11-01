@@ -228,6 +228,34 @@ resource "aws_lambda_permission" "allow_events_tt" {
   source_arn    = aws_cloudwatch_event_rule.tt_schedule.arn
 }
 
+#---------------- GLUE NORMALISATION ----------------#
+
+locals {
+  glue = {
+    name         = "commentpilot_glue_normalise_dev"
+    role_arn     = "arn:aws:iam::155186308102:role/cp_glue_job_dev"
+    script_bucket= "commentpilot-processed-dev-155186308102" # reuse processed bucket for scripts
+    script_key   = "glue/scripts/normalise/script.py"
+    source       = "s3://commentpilot-raw-dev-155186308102"
+    target       = "s3://commentpilot-processed-dev-155186308102"
+    env          = "dev"
+  }
+}
+
+module "glue_normalise" {
+  source          = "../../modules/glue_job"
+  name            = local.glue.name
+  role_arn        = local.glue.role_arn
+  script_src      = "../../../backend/src/etl/normalise_glue_job/script.py"
+  script_s3_bucket= local.glue.script_bucket
+  script_s3_key   = local.glue.script_key
+  default_args    = {
+    "--source" = local.glue.source
+    "--target" = local.glue.target
+    "--env"    = local.glue.env
+  }
+}
+
 #---------------- IAM ----------------#
 
 # Convenience locals
