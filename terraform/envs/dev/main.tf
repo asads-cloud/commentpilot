@@ -174,6 +174,36 @@ resource "aws_iam_role_policy_attachment" "attach_s3_put_raw" {
   policy_arn = aws_iam_policy.s3_put_raw.arn
 }
 
+# --- CloudWatch Logs write for cp_lambda_exec_dev ---
+resource "aws_iam_policy" "cw_logs_write_lambda_exec_dev" {
+  name   = "cp_lambda_logs_write_dev"
+  policy = data.aws_iam_policy_document.cw_logs_write.json
+}
+
+resource "aws_iam_role_policy_attachment" "attach_cw_logs_write_lambda_exec_dev" {
+  role       = data.aws_iam_role.cp_lambda_exec_dev.name
+  policy_arn = aws_iam_policy.cw_logs_write_lambda_exec_dev.arn
+}
+
+# --- DynamoDB READ-ONLY for cp_lambda_exec_dev ---
+data "aws_iam_policy_document" "lambda_ddb_read" {
+  statement {
+    effect    = "Allow"
+    actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"]
+    resources = [module.dynamodb_messages.table_arn]
+  }
+}
+
+resource "aws_iam_policy" "lambda_ddb_read" {
+  name   = "cp_lambda_ddb_read_dev"
+  policy = data.aws_iam_policy_document.lambda_ddb_read.json
+}
+
+resource "aws_iam_role_policy_attachment" "attach_lambda_ddb_read" {
+  role       = data.aws_iam_role.cp_lambda_exec_dev.name
+  policy_arn = aws_iam_policy.lambda_ddb_read.arn
+}
+
 # Instagram ETL
 module "lambda_fetch_instagram_dm" {
   source    = "../../modules/lambda_basic"
@@ -360,6 +390,11 @@ data "aws_iam_policy_document" "glue_rw" {
   statement {
     effect    = "Allow"
     actions   = ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject"]
+    resources = [local.proc_arn, local.proc_objs_arn]
+  }
+  statement {
+    effect    = "Allow"
+    actions   = ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject", "s3:AbortMultipartUpload", "s3:PutObjectAcl"]
     resources = [local.proc_arn, local.proc_objs_arn]
   }
   statement {

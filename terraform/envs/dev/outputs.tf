@@ -20,7 +20,7 @@ output "dynamodb_messages_stream_arn" {
   value = module.dynamodb_messages.table_stream_arn
 }
 
-#---------------- LAMBDA ----------------#
+#---------------- LAMBDA ----------------------------------------------------------------------------------------#
 
 output "lambda_health_function_name" {
   value = module.lambda_health.function_name
@@ -30,6 +30,44 @@ output "lambda_health_function_arn" {
   value = module.lambda_health.function_arn
 }
 
+output "lambda_cp_api_get_messages_arn" {
+  value       = module.lambda_get_messages.lambda_arn
+  description = "ARN for GET /messages Lambda"
+}
+
+output "lambda_cp_api_post_reply_arn" {
+  value       = module.lambda_post_reply.lambda_arn
+  description = "ARN for POST /reply Lambda"
+}
+
+output "lambda_cp_fetch_instagram_dm_arn" {
+  value       = module.lambda_fetch_instagram_dm.lambda_arn
+  description = "ARN for Instagram DM fetch ETL"
+}
+
+output "lambda_cp_fetch_tiktok_dm_arn" {
+  value       = module.lambda_fetch_tiktok_dm.lambda_arn
+  description = "ARN for TikTok DM fetch ETL"
+}
+
+#---------------- GLUE ----------------------------------------------------------------------------------------#
+
+output "glue_normalise_job_name" {
+  value       = module.glue_normalise.job_name
+  description = "Glue job name"
+}
+
+#---------------- Eventbridge ----------------------------------------------------------------------------------------#
+
+output "rule_cp_fetch_schedule_instagram_dev_arn" {
+  value       = aws_cloudwatch_event_rule.ig_schedule.arn
+  description = "EventBridge rule ARN for Instagram ETL schedule."
+}
+
+output "rule_cp_fetch_schedule_tiktok_dev_arn" {
+  value       = aws_cloudwatch_event_rule.tt_schedule.arn
+  description = "EventBridge rule ARN for TikTok ETL schedule."
+}
 #---------------- API Gateway ----------------#
 
 output "apigw_invoke_url" {
