@@ -3,6 +3,11 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.922.0",
+    "@aws-sdk/lib-dynamodb": "^3.922.0",
     "jose": "^5.10.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
   }
 }
