@@ -1,6 +1,6 @@
 # CommentPilot — Infrastructure Outputs (dev)
 
-**Environment:** dev  |  **Region:** eu-west-1  |  **Generated:** 2025-10-29 17:34:23 UTC
+**Environment:** dev  |  **Region:** eu-west-1  |  **Generated:** 2025-11-02 02:19:46 UTC
 
 ## Core Resources
 
@@ -21,6 +21,17 @@
 ### Lambda
 - Health function name: `cp-health-dev`
 - Health function ARN: `arn:aws:lambda:eu-west-1:155186308102:function:cp-health-dev`
+- cp_api_get_messages_dev ARN: `arn:aws:lambda:eu-west-1:155186308102:function:cp_api_get_messages_dev`
+- cp_api_post_reply_dev ARN: `arn:aws:lambda:eu-west-1:155186308102:function:cp_api_post_reply_dev`
+- cp_fetch_instagram_dm_dev ARN: `arn:aws:lambda:eu-west-1:155186308102:function:cp_fetch_instagram_dm_dev`
+- cp_fetch_tiktok_dm_dev ARN: `arn:aws:lambda:eu-west-1:155186308102:function:cp_fetch_tiktok_dm_dev`
+
+### Glue
+- Normalise job name: `commentpilot_glue_normalise_dev`
+
+### EventBridge
+- Instagram 5-min rule ARN: `arn:aws:events:eu-west-1:155186308102:rule/cp_fetch_schedule_instagram_dev`
+- TikTok 5-min rule ARN: `arn:aws:events:eu-west-1:155186308102:rule/cp_fetch_schedule_tiktok_dev`
 
 ### API Gateway
 - Invoke URL: https://o4yb8vt8i0.execute-api.eu-west-1.amazonaws.com/dev
@@ -37,7 +48,7 @@
 - Environment = dev
 - Project = CommentPilot
 - Owner = you
-- Phase = 1
+- Phase = 2
 
 ## Verification Checklist
 - [ ] `GET https://o4yb8vt8i0.execute-api.eu-west-1.amazonaws.com/dev/health` returns 200 JSON
