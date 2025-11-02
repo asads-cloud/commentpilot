@@ -11,7 +11,7 @@ try {
   Pop-Location
 }
 
-# Resolve region (prefer TF/Cognito issuer → falls back to AWS default → eu-west-1)
+# --- Detect region safely (prefer Cognito issuer, then AWS CLI/defaults) ---
 $region = "eu-west-1"
 if ($json.cognito_issuer.value -match 'cognito-idp\.([a-z0-9-]+)\.amazonaws\.com') { $region = $Matches[1] }
 elseif ($env:AWS_REGION) { $region = $env:AWS_REGION }
@@ -44,6 +44,17 @@ $lines += ""
 $lines += "### Lambda"
 $lines += "- Health function name: ``$($json.lambda_health_function_name.value)``"
 $lines += "- Health function ARN: ``$($json.lambda_health_function_arn.value)``"
+$lines += "- cp_api_get_messages_dev ARN: ``$($json.lambda_cp_api_get_messages_arn.value)``"
+$lines += "- cp_api_post_reply_dev ARN: ``$($json.lambda_cp_api_post_reply_arn.value)``"
+$lines += "- cp_fetch_instagram_dm_dev ARN: ``$($json.lambda_cp_fetch_instagram_dm_arn.value)``"
+$lines += "- cp_fetch_tiktok_dm_dev ARN: ``$($json.lambda_cp_fetch_tiktok_dm_arn.value)``"
+$lines += ""
+$lines += "### Glue"
+$lines += "- Normalise job name: ``$($json.glue_normalise_job_name.value)``"
+$lines += ""
+$lines += "### EventBridge"
+$lines += "- Instagram 5-min rule ARN: ``$($json.rule_cp_fetch_schedule_instagram_dev_arn.value)``"
+$lines += "- TikTok 5-min rule ARN: ``$($json.rule_cp_fetch_schedule_tiktok_dev_arn.value)``"
 $lines += ""
 $lines += "### API Gateway"
 $lines += "- Invoke URL: $($json.apigw_invoke_url.value)"
@@ -60,7 +71,7 @@ $lines += "## Tags (global)"
 $lines += "- Environment = dev"
 $lines += "- Project = CommentPilot"
 $lines += "- Owner = you"
-$lines += "- Phase = 1"
+$lines += "- Phase = 2"
 $lines += ""
 $lines += "## Verification Checklist"
 $lines += "- [ ] ``GET $($json.apigw_invoke_url.value)/health`` returns 200 JSON"
@@ -69,8 +80,9 @@ $lines += "- [ ] S3 buckets visible and versioning enabled"
 $lines += "- [ ] DynamoDB table ACTIVE, PITR enabled, Stream ARN present"
 $lines += "- [ ] CloudWatch logs receiving API GW access logs and Lambda logs"
 
+# --- Write markdown file ---
 $dir = Split-Path $OutFile
 if (!(Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
 $lines -join "`r`n" | Out-File $OutFile -Encoding UTF8
 
-Write-Host "Wrote $OutFile"
+Write-Host "✅ Wrote $OutFile"
