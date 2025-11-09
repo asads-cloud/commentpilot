@@ -7,18 +7,24 @@ __pycache__/
 .venv/
 # Terraform
 .terraform/
+**/.terraform/
 *.tfstate
 *.tfstate.*
 crash.log
 terraform.tfvars
+# Terraform state & vars (anywhere)
+**/*tfstate*
+**/*.tfvars
 # VS Code
 .vscode/
 # OS
 .DS_Store
 Thumbs.db
 .zip
-
+**/*.zip
+**/*.json
 # build and artifact directories
 .build/
 .artifacts/
-
+**/.build/
+**/.artifacts/
