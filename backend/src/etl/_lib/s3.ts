@@ -9,5 +9,6 @@ export async function putJson(opts: { bucket: string; key: string; data: any }) 
     Key: key,
     Body: JSON.stringify(data),
     ContentType: "application/json",
+    ServerSideEncryption: "AES256",
   }));
 }

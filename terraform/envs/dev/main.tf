@@ -13,7 +13,11 @@ module "s3_raw" {
   bucket_name        = local.raw_bucket_name
   versioning_enabled = true
   force_destroy      = false
-  tags               = merge(local.tags, { Name = local.raw_bucket_name, Purpose = "raw-ingestion" })
+
+  # Raw: transition to IA after 30 days
+  lifecycle_transition_to_ia_days = 30
+  lifecycle_expiration_days       = null
+  tags                            = merge(local.tags, { Name = local.raw_bucket_name, Purpose = "raw-ingestion" })
 }
 
 module "s3_processed" {
@@ -21,7 +25,11 @@ module "s3_processed" {
   bucket_name        = local.processed_bucket_name
   versioning_enabled = true
   force_destroy      = false
-  tags               = merge(local.tags, { Name = local.processed_bucket_name, Purpose = "processed-output" })
+
+  # Processed: expire after 180 days
+  lifecycle_transition_to_ia_days = null
+  lifecycle_expiration_days       = 180
+  tags                            = merge(local.tags, { Name = local.processed_bucket_name, Purpose = "processed-output" })
 }
 
 #---------------- DYNAMO DB ----------------#
@@ -78,16 +86,16 @@ locals {
 }
 
 module "apigw" {
-  source              = "../../modules/api_gateway"
-  api_name            = local.api_name
-  stage_name          = local.stage_name
-  region              = var.region
+  source     = "../../modules/api_gateway"
+  api_name   = local.api_name
+  stage_name = local.stage_name
+  region     = var.region
 
   lambda_arn_health       = module.lambda_health.function_arn
   lambda_arn_get_messages = module.lambda_get_messages.lambda_arn
   lambda_arn_post_reply   = module.lambda_post_reply.lambda_arn
 
-  cognito_user_pool_arn   = module.cognito.user_pool_arn
+  cognito_user_pool_arn = module.cognito.user_pool_arn
 
   cloudwatch_role_arn = module.iam_apigw_logs.role_arn
   tags                = merge(local.tags, { Name = local.api_name, Purpose = "public-api" })
@@ -161,8 +169,15 @@ data "aws_iam_role" "cp_lambda_exec_dev" {
 # S3 write permissions for RAW bucket
 data "aws_iam_policy_document" "s3_put_raw" {
   statement {
-    actions   = ["s3:PutObject","s3:AbortMultipartUpload","s3:PutObjectAcl"]
-    resources = ["arn:aws:s3:::${local.raw_bucket_name}/*"]
+    sid     = "AllowPutToRawBucketInstagramTiktok"
+    effect  = "Allow"
+
+    actions   = ["s3:PutObject", "s3:AbortMultipartUpload"]
+
+    resources = [
+      "arn:aws:s3:::${local.raw_bucket_name}/instagram/*",
+      "arn:aws:s3:::${local.raw_bucket_name}/tiktok/*"
+    ]
   }
 }
 resource "aws_iam_policy" "s3_put_raw" {
@@ -206,21 +221,33 @@ resource "aws_iam_role_policy_attachment" "attach_lambda_ddb_read" {
 
 # Instagram ETL
 module "lambda_fetch_instagram_dm" {
-  source    = "../../modules/lambda_basic"
-  name      = "cp_fetch_instagram_dm_dev"
-  entry_dir = "etl/fetch_instagram_dm"
-  role_arn  = data.aws_iam_role.cp_lambda_exec_dev.arn
-  env       = { RAW_BUCKET = local.raw_bucket_name }
+  source     = "../../modules/lambda_basic"
+  name       = "cp_fetch_instagram_dm_dev"
+  entry_dir  = "etl/fetch_instagram_dm"
+  role_arn   = data.aws_iam_role.cp_lambda_exec_dev.arn
+
+  env        = { 
+    RAW_BUCKET = local.raw_bucket_name
+    PLATFORM        = "instagram"
+    TENANT_ID       = "tenant_dev_demo"
+  }
+
   depends_on = [aws_iam_role_policy_attachment.attach_s3_put_raw]
 }
 
 # TikTok ETL
 module "lambda_fetch_tiktok_dm" {
-  source    = "../../modules/lambda_basic"
-  name      = "cp_fetch_tiktok_dm_dev"
-  entry_dir = "etl/fetch_tiktok_dm"
-  role_arn  = data.aws_iam_role.cp_lambda_exec_dev.arn
-  env       = { RAW_BUCKET = local.raw_bucket_name }
+  source     = "../../modules/lambda_basic"
+  name       = "cp_fetch_tiktok_dm_dev"
+  entry_dir  = "etl/fetch_tiktok_dm"
+  role_arn   = data.aws_iam_role.cp_lambda_exec_dev.arn
+
+  env        = { 
+    RAW_BUCKET = local.raw_bucket_name
+    PLATFORM        = "tiktok"
+    TENANT_ID       = "tenant_dev_demo"
+  }
+
   depends_on = [aws_iam_role_policy_attachment.attach_s3_put_raw]
 }
 
@@ -262,24 +289,24 @@ resource "aws_lambda_permission" "allow_events_tt" {
 
 locals {
   glue = {
-    name         = "commentpilot_glue_normalise_dev"
-    role_arn     = "arn:aws:iam::155186308102:role/cp_glue_job_dev"
-    script_bucket= "commentpilot-processed-dev-155186308102" # reuse processed bucket for scripts
-    script_key   = "glue/scripts/normalise/script.py"
-    source       = "s3://commentpilot-raw-dev-155186308102"
-    target       = "s3://commentpilot-processed-dev-155186308102"
-    env          = "dev"
+    name          = "commentpilot_glue_normalise_dev"
+    role_arn      = "arn:aws:iam::155186308102:role/cp_glue_job_dev"
+    script_bucket = "commentpilot-processed-dev-155186308102" # reuse processed bucket for scripts
+    script_key    = "glue/scripts/normalise/script.py"
+    source        = "s3://commentpilot-raw-dev-155186308102"
+    target        = "s3://commentpilot-processed-dev-155186308102"
+    env           = "dev"
   }
 }
 
 module "glue_normalise" {
-  source          = "../../modules/glue_job"
-  name            = local.glue.name
-  role_arn        = local.glue.role_arn
-  script_src      = "../../../backend/src/etl/normalise_glue_job/script.py"
-  script_s3_bucket= local.glue.script_bucket
-  script_s3_key   = local.glue.script_key
-  default_args    = {
+  source           = "../../modules/glue_job"
+  name             = local.glue.name
+  role_arn         = local.glue.role_arn
+  script_src       = "../../../backend/src/etl/normalise_glue_job/script.py"
+  script_s3_bucket = local.glue.script_bucket
+  script_s3_key    = local.glue.script_key
+  default_args = {
     "--source" = local.glue.source
     "--target" = local.glue.target
     "--env"    = local.glue.env

@@ -41,21 +41,52 @@ resource "aws_s3_bucket_versioning" "this" {
   }
 }
 
-# Minimal lifecycle (optional tune-up later)
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 
+  # Rule 1: abort incomplete multipart uploads
   rule {
     id     = "abort-incomplete-mpu-7d"
     status = "Enabled"
 
-    # Apply to entire bucket
     filter { prefix = "" }
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
     }
   }
+
+  # Rule 2: transition to STANDARD_IA (for raw)
+  dynamic "rule" {
+    for_each = var.lifecycle_transition_to_ia_days != null ? [1] : []
+    content {
+      id     = "transition-to-ia"
+      status = "Enabled"
+
+      filter { prefix = "" }
+
+      transition {
+        days          = var.lifecycle_transition_to_ia_days
+        storage_class = "STANDARD_IA"
+      }
+    }
+  }
+
+  # Rule 3: expire objects (for processed)
+  dynamic "rule" {
+    for_each = var.lifecycle_expiration_days != null ? [1] : []
+    content {
+      id     = "expire-objects"
+      status = "Enabled"
+
+      filter { prefix = "" }
+
+      expiration {
+        days = var.lifecycle_expiration_days
+      }
+    }
+  }
 }
+
 
 

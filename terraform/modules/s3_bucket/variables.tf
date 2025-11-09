@@ -19,3 +19,15 @@ variable "tags" {
   description = "Resource tags"
   type        = map(string)
 }
+
+variable "lifecycle_transition_to_ia_days" {
+  description = "If set, transition objects to STANDARD_IA after this many days"
+  type        = number
+  default     = null
+}
+
+variable "lifecycle_expiration_days" {
+  description = "If set, expire objects after this many days"
+  type        = number
+  default     = null
+}
